@@ -9,9 +9,10 @@ function CrearVenta() {
 
     const [productos, setProductos] = useState([])
     const [clientes, setClientes] = useState([])
-    const [productoSeleccionado, setProductoSeleccionado] = useState(null)
     const [clienteSeleccionado, setClienteSeleccionado] = useState(null)
-    const [CantidadUnidades, setCantidadUnidades] = useState('')
+    const [productoSeleccionado, setProductoSeleccionado] = useState(null)
+    const [cantidad, setCantidad] = useState('')
+    const [renglones, setRenglones] = useState([])
 
     useEffect(() => {
         async function cargarDatos() {
@@ -33,7 +34,68 @@ function CrearVenta() {
         setClienteSeleccionado(cliente || null)
     }
 
+    function agregarRenglon() {
+        if (!productoSeleccionado) {
+            alert("Seleccioná un producto")
+            return
+        }
+        if (!cantidad || Number(cantidad) <= 0) {
+            alert("Ingresá una cantidad válida")
+            return
+        }
+
+        if (productoSeleccionado.Stock - Number(cantidad) < 0) {
+            const confirmar = window.confirm(`No hay stock de ${productoSeleccionado.Nombre}, ¿agregar igual?`)
+            if (!confirmar) return
+        }
+
+        const indexExistente = renglones.findIndex(
+            r => r.producto.idProducto === productoSeleccionado.idProducto
+        )
+
+        if (indexExistente !== -1) {
+            const nuevos = [...renglones]
+            nuevos[indexExistente].cantidad += Number(cantidad)
+            setRenglones(nuevos)
+        } else {
+            setRenglones([
+                ...renglones,
+                {
+                    producto: productoSeleccionado,
+                    cantidad: Number(cantidad)
+                }
+            ])
+        }
+
+        setProductoSeleccionado(null)
+        setCantidad('')
+    }
+
+    function eliminarRenglon(index) {
+        const nuevos = [...renglones]
+        nuevos.splice(index, 1)
+        setRenglones(nuevos)
+    }
+
+    function editarCantidad(index, nuevaCantidad) {
+        if (!nuevaCantidad || Number(nuevaCantidad) <= 0) return
+
+        const nuevos = [...renglones]
+        nuevos[index].cantidad = Number(nuevaCantidad)
+        setRenglones(nuevos)
+    }
+
     async function agregarVenta() {
+        if (!clienteSeleccionado) {
+            alert("Seleccioná un cliente")
+            return
+        }
+
+        if (renglones.length === 0) {
+            alert("Agregá al menos un producto")
+            return
+        }
+
         const { data: ventaCreada, error: errorVenta } = await supabase
             .from('Ventas')
             .insert([{
@@ -50,18 +112,20 @@ function CrearVenta() {
 
         const idVenta = ventaCreada[0].idVenta
 
-        const { error: errorDetalle } = await supabase
-            .from('DetalleVentas')
-            .insert([{
-                idVenta: idVenta,
-                idProducto: productoSeleccionado.idProducto,
-                CantidadUnidades: Number(CantidadUnidades),
-                PrecioVentaUnitario: productoSeleccionado.PrecioVenta
-            }])
+        for (const renglon of renglones) {
+            const { error: errorDetalle } = await supabase
+                .from('DetalleVentas')
+                .insert([{
+                    idVenta: idVenta,
+                    idProducto: renglon.producto.idProducto,
+                    CantidadUnidades: renglon.cantidad,
+                    PrecioVentaUnitario: renglon.producto.PrecioVenta
+                }])
 
-        if (errorDetalle) {
-            alert("Error al guardar el detalle de la venta")
-            return
+            if (errorDetalle) {
+                alert("Error al guardar detalle")
+                return
+            }
         }
 
         alert("Venta creada ✅")
@@ -70,24 +134,6 @@ function CrearVenta() {
 
     const manejarSubmit = (e) => {
         e.preventDefault()
-
-        if (!clienteSeleccionado) {
-            alert("Seleccioná un cliente")
-            return
-        }
-        if (!productoSeleccionado) {
-            alert("Seleccioná un producto")
-            return
-        }
-        if (!CantidadUnidades || Number(CantidadUnidades) <= 0) {
-            alert("Ingresá una cantidad válida")
-            return
-        }
-        if (productoSeleccionado.Stock - Number(CantidadUnidades) < 0) {
-            const confirmar = window.confirm(`Ya no te queda stock de ${productoSeleccionado.Nombre}, ¿querés hacer la venta igual?`)
-            if (!confirmar) return
-        }
-
         agregarVenta()
     }
 
@@ -98,7 +144,7 @@ function CrearVenta() {
             <div className="crear-venta-campos">
 
                 <div className="crear-venta-campo">
-                    <label className="crear-venta-label">Cliente</label>
+                    <label>Cliente</label>
                     <select onChange={handleSelectCliente} defaultValue="">
                         <option value="" disabled>Seleccioná un cliente</option>
                         {clientes.map(c => (
@@ -110,8 +156,8 @@ function CrearVenta() {
                 </div>
 
                 <div className="crear-venta-campo">
-                    <label className="crear-venta-label">Producto</label>
-                    <select onChange={handleSelectProducto} defaultValue="">
+                    <label>Producto</label>
+                    <select onChange={handleSelectProducto} value={productoSeleccionado?.idProducto || ""}>
                         <option value="" disabled>Seleccioná un producto</option>
                         {productos.map(prod => (
                             <option key={prod.idProducto} value={prod.idProducto}>
@@ -119,27 +165,56 @@ function CrearVenta() {
                             </option>
                         ))}
                     </select>
+
                     {productoSeleccionado && (
-                        <div className="crear-venta-preview">
-                            <span className="crear-venta-preview-label">Precio de venta</span>
-                            <span className="crear-venta-preview-valor">${productoSeleccionado.PrecioVenta}</span>
+                        <div>
+                            Precio: ${productoSeleccionado.PrecioVenta}
                         </div>
                     )}
                 </div>
 
                 <div className="crear-venta-campo">
-                    <label className="crear-venta-label">Cantidad</label>
+                    <label>Cantidad</label>
                     <input
-                        placeholder="Cantidad unidades"
                         type="number"
                         min="1"
-                        onChange={(e) => setCantidadUnidades(e.target.value)}
+                        value={cantidad}
+                        onChange={(e) => setCantidad(e.target.value)}
                     />
                 </div>
 
+                <button type="button" onClick={agregarRenglon}>
+                    Agregar producto
+                </button>
+
+                {renglones.length > 0 && (
+                    <div>
+                        <h3>Productos agregados</h3>
+
+                        {renglones.map((r, index) => (
+                            <div key={index} className="renglon-item">
+                                <span>{r.producto.Nombre}</span>
+
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={r.cantidad}
+                                    onChange={(e) => editarCantidad(index, e.target.value)}
+                                />
+
+                                <span>${r.producto.PrecioVenta}</span>
+
+                                <button type="button" onClick={() => eliminarRenglon(index)}>
+                                    ❌
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
             </div>
 
-            <button className="btn btn-primary" type="submit">Agregar venta</button>
+            <button type="submit">Crear venta</button>
 
         </form>
     )
