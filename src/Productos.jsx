@@ -6,6 +6,7 @@ import './Productos.css'
 function Productos() {
     const [productos, setProductos] = useState([])
     const navigate = useNavigate()
+    const [busqueda, setBusqueda] = useState('')
 
     useEffect(() => {
         cargarProductos()
@@ -19,6 +20,9 @@ function Productos() {
         if (error) return
         setProductos(data)
     }
+    const productosFiltrados = productos.filter(prod =>
+        prod.Nombre.toLowerCase().includes(busqueda.toLowerCase())
+    )
 
     return (
         <div className="productos-page">
@@ -30,14 +34,18 @@ function Productos() {
                 </button>
             </div>
 
-            <div className="productos-nav">
-                <button className="btn btn-secondary" onClick={() => navigate('/clientes')}>Clientes</button>
-                <button className="btn btn-secondary" onClick={() => navigate('/ventas')}>Ventas</button>
-                <button className="btn btn-secondary" onClick={() => navigate('/ganancias')}>Ganancias</button>
+            <div className="productos-toolbar">
+                <input
+                    placeholder="Buscar producto..."
+                    onChange={(e) => setBusqueda(e.target.value)}
+                />
+                <button className="btn btn-secondary" onClick={() => navigate('/importar-productos')}>
+                    Importar Excel
+                </button>
             </div>
 
             <div className="productos-lista">
-                {productos.map((prod, index) => (
+                {productosFiltrados.map((prod, index) => (
                     <button className="producto-item" key={index} onClick={() => navigate(`/producto/${prod.idProducto}`)}>
                         {prod.ImagenUrl && (
                             <img src={prod.ImagenUrl} alt={prod.Nombre} />

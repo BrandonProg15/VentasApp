@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from './supabaseClient'
+import jsPDF from 'jspdf'
 import './DetalleVenta.css'
 
 function DetalleVenta() {
@@ -13,7 +14,32 @@ function DetalleVenta() {
     useEffect(() => {
         traerVenta()
     }, [])
+    function generarPDF() {
+        const doc = new jsPDF()
 
+        doc.setFontSize(18)
+        doc.text('Presupuesto de venta', 20, 20)
+
+        doc.setFontSize(12)
+        doc.text(`Cliente: ${venta.Clientes?.Nombre} ${venta.Clientes?.Apellido}`, 20, 45)
+        doc.text(`Fecha: ${new Date(venta.fecha).toLocaleDateString('es-AR')}`, 20, 55)
+        doc.text(`Estado: ${venta.estado}`, 20, 65)
+
+        doc.text('Productos:', 20, 80)
+        let y = 90
+        venta.DetalleVentas.forEach(detalle => {
+            doc.text(
+                `${detalle.Productos?.Nombre} x ${detalle.CantidadUnidades} — $${detalle.PrecioVentaUnitario} c/u — Total: $${detalle.PrecioVentaUnitario * detalle.CantidadUnidades}`,
+                20, y
+            )
+            y += 10
+        })
+
+
+        doc.text(`Total: $${venta.total}`, 20, y + 10)
+
+        doc.save(`factura-venta-${venta.idVenta}.pdf`)
+    }
     async function traerVenta() {
         const { data, error } = await supabase
             .from('Ventas')
@@ -134,10 +160,12 @@ function DetalleVenta() {
                 {editando ? (
                     <button className="btn btn-primary" onClick={guardarCambios}>Guardar</button>
                 ) : (
-                    <button className="btn btn-secondary" onClick={() => setEditando(true)}>Editar</button>
+                    <>
+                        <button className="btn btn-secondary" onClick={() => setEditando(true)}>Editar</button>
+                        <button className="btn btn-secondary" onClick={generarPDF}>Descargar PDF</button>
+                    </>
                 )}
             </div>
-
         </div>
     )
 }

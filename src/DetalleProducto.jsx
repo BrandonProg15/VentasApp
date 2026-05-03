@@ -37,7 +37,8 @@ function DetalleProducto() {
                 Nombre: form.Nombre,
                 PrecioCompra: Number(form.PrecioCompra),
                 PrecioVenta: Number(form.PrecioVenta),
-                Stock: Number(form.Stock)
+                Stock: Number(form.Stock),
+                ImagenUrl: form.ImagenUrl
             })
             .eq('idProducto', id)
 
@@ -132,6 +133,16 @@ function DetalleProducto() {
                 <div className="campo-fila">
                     <span className="campo-label">Tipo</span>
                     <p className="campo-valor">{producto.TipoProducto}</p>
+                </div>
+                <div className="campo-fila">
+                    <span className="campo-label">Imagen</span>
+                    {editando ? (
+                        <input value={form.ImagenUrl || ''} placeholder="https://..." onChange={(e) => setForm({ ...form, ImagenUrl: e.target.value })} />
+                    ) : (
+                        producto.ImagenUrl
+                            ? <img src={producto.ImagenUrl} alt={producto.Nombre} style={{ width: 120, borderRadius: 8, marginTop: 4 }} />
+                            : <p className="campo-valor">Sin imagen</p>
+                    )}
                 </div>
 
             </div>

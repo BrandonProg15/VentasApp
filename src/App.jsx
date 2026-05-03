@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import Header from './Header'
 import Productos from './Productos'
 import DetalleProducto from './DetalleProducto'
 import CrearProducto from './CrearProducto'
@@ -8,10 +9,13 @@ import Clientes from './Clientes'
 import Ventas from './Ventas'
 import Ganancias from './Ganancias'
 import DetalleVenta from './DetalleVenta'
+import ImportarProductos from './ImportarProductos'
+
 
 function App() {
   return (
     <BrowserRouter>
+      <Header />
       <Routes>
         <Route path="/" element={<Productos />} />
         <Route path="/producto/:id" element={<DetalleProducto />} />
@@ -22,6 +26,7 @@ function App() {
         <Route path="/ventas" element={<Ventas />} />
         <Route path="/ganancias" element={<Ganancias />} />
         <Route path="/venta/:id" element={<DetalleVenta />} />
+        <Route path="/importar-productos" element={<ImportarProductos />} />
       </Routes>
     </BrowserRouter>
   )
