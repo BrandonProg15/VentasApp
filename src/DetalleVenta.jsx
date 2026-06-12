@@ -84,7 +84,7 @@ function DetalleVenta() {
         traerVenta()
     }
 
-    if (!venta) return <p>Cargando...</p>
+    if (!venta || !form) return <p>Cargando...</p>
     const calcularTotalForm = () => {
         if (!form || !form.DetalleVentas) return 0;
         return form.DetalleVentas.reduce((acc, det) => {
@@ -93,9 +93,64 @@ function DetalleVenta() {
     };
 
     // Función para calcular el total dinámico mientras se edita
-    const totalVenta = form?.DetalleVentas?.reduce((acc, det) => {
-        return acc + (Number(det.CantidadUnidades) * Number(det.PrecioVentaUnitario))
-    }, 0)
+    const totalVenta =
+        form?.DetalleVentas?.reduce((acc, det) => {
+            return acc + (
+                Number(det.CantidadUnidades) *
+                Number(det.PrecioVentaUnitario)
+            )
+        }, 0) || 0
+    function generarPDF() {
+        const doc = new jsPDF()
+
+        doc.setFontSize(18)
+        doc.text(`Venta #${venta.idVenta}`, 10, 15)
+
+        doc.setFontSize(12)
+        doc.text(
+            `Cliente: ${venta.Clientes?.Nombre || ''} ${venta.Clientes?.Apellido || ''}`,
+            10,
+            25
+        )
+
+        doc.text(
+            `Fecha: ${new Date(venta.fecha).toLocaleString('es-AR')}`,
+            10,
+            35
+        )
+
+        doc.text(
+            `Estado: ${venta.estado}`,
+            10,
+            45
+        )
+
+        let y = 60
+
+        doc.text('Productos:', 10, y)
+        y += 10
+
+        form.DetalleVentas.forEach(detalle => {
+            doc.text(
+                `${detalle.Productos?.Nombre} - ${detalle.CantidadUnidades} x $${detalle.PrecioVentaUnitario}`,
+                10,
+                y
+            )
+
+            y += 10
+        })
+
+        y += 10
+
+        doc.setFontSize(14)
+        doc.text(
+            `Total: $${totalVenta.toLocaleString('es-AR')}`,
+            10,
+            y
+        )
+
+        doc.save(`venta-${venta.idVenta}.pdf`)
+    }
 
     return (
         <div className="detalle-venta-page">
