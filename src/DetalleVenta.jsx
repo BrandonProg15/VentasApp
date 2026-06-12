@@ -85,29 +85,63 @@ function DetalleVenta() {
     }
 
     if (!venta) return <p>Cargando...</p>
+    const calcularTotalForm = () => {
+        if (!form || !form.DetalleVentas) return 0;
+        return form.DetalleVentas.reduce((acc, det) => {
+            return acc + (Number(det.CantidadUnidades) * Number(det.PrecioVentaUnitario));
+        }, 0);
+    };
+
+    // Función para calcular el total dinámico mientras se edita
+    const totalVenta = form?.DetalleVentas?.reduce((acc, det) => {
+        return acc + (Number(det.CantidadUnidades) * Number(det.PrecioVentaUnitario))
+    }, 0)
 
     return (
         <div className="detalle-venta-page">
             <div className="detalle-venta-header">
-                <h2>Venta #{venta.idVenta} - {venta.Clientes?.Nombre}</h2>
-                <select disabled={!editando} value={form.estado} onChange={(e) => setForm({ ...form, estado: e.target.value })}>
-                    <option value="activa">Activa</option>
-                    <option value="modificada">Modificada</option>
-                    <option value="cancelada">Cancelada</option>
-                </select>
+                <p className="detalle-venta-id">Venta #{venta.idVenta}</p>
+                <h2 className="detalle-venta-cliente">
+                    {venta.Clientes?.Nombre} {venta.Clientes?.Apellido}
+                </h2>
+
+                <div className="detalle-venta-meta">
+                    <div className="detalle-venta-meta-item">
+                        <span className="detalle-venta-meta-label">Fecha: </span>
+                        <span className="detalle-venta-meta-valor">
+                            {new Date(venta.fecha).toLocaleDateString('es-AR', {
+                                day: '2-digit', month: '2-digit', year: 'numeric',
+                                hour: '2-digit', minute: '2-digit'
+                            })}
+                        </span>
+                    </div>
+
+                    <div className="detalle-venta-meta-item">
+                        <span className="detalle-venta-meta-label">Estado: </span>
+                        <select
+                            disabled={!editando}
+                            value={form.estado}
+                            onChange={(e) => setForm({ ...form, estado: e.target.value })}
+                        >
+                            <option value="activa">Activa</option>
+                            <option value="modificada">Modificada</option>
+                            <option value="cancelada">Cancelada</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <h3>Productos</h3>
             <div className="detalle-venta-productos">
                 {form.DetalleVentas.map((detalle, index) => (
                     <div className="detalle-venta-producto-fila" key={index}>
-                        <span>{detalle.Productos?.Nombre}</span>
+                        <span className="detalle-venta-producto-nombre">{detalle.Productos?.Nombre}</span>
 
                         {editando ? (
-                            <>
+                            <div className="detalle-venta-inputs">
+                                <label>Cant:</label>
                                 <input
                                     type="number"
-                                    placeholder="Cant"
                                     value={detalle.CantidadUnidades}
                                     onChange={(e) => {
                                         const nuevos = [...form.DetalleVentas]
@@ -115,9 +149,9 @@ function DetalleVenta() {
                                         setForm({ ...form, DetalleVentas: nuevos })
                                     }}
                                 />
+                                <label>Precio ($):</label>
                                 <input
                                     type="number"
-                                    placeholder="Precio"
                                     value={detalle.PrecioVentaUnitario}
                                     onChange={(e) => {
                                         const nuevos = [...form.DetalleVentas]
@@ -125,9 +159,11 @@ function DetalleVenta() {
                                         setForm({ ...form, DetalleVentas: nuevos })
                                     }}
                                 />
-                            </>
+                            </div>
                         ) : (
-                            <span>${detalle.PrecioVentaUnitario} x {detalle.CantidadUnidades}</span>
+                            <span className="detalle-venta-producto-precio">
+                                ${Number(detalle.PrecioVentaUnitario).toLocaleString()} x {detalle.CantidadUnidades}
+                            </span>
                         )}
                     </div>
                 ))}
@@ -138,27 +174,45 @@ function DetalleVenta() {
                     <h4>Agregar más productos:</h4>
                     <input
                         type="text"
-                        placeholder="Buscar producto..."
+                        placeholder="Escribí para buscar..."
                         value={busqueda}
                         onChange={(e) => setBusqueda(e.target.value)}
                     />
-                    {sugerencias.map(p => (
-                        <div key={p.idProducto} onClick={() => agregarProductoNuevo(p)} className="sugerencia-item">
-                            {p.Nombre} (+ agregar)
-                        </div>
-                    ))}
+                    {busqueda && sugerencias.length > 0 && (
+                        <ul className="sugerencias-lista">
+                            {sugerencias.map(p => (
+                                <li key={p.idProducto} onClick={() => agregarProductoNuevo(p)}>
+                                    {p.Nombre} (${p.PrecioVenta}) ➕
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                 </div>
             )}
 
+            <div className="detalle-venta-total">
+                <span className="detalle-venta-total-label">Total ganado:</span>
+                <span className="detalle-venta-total-valor">
+                    ${totalVenta.toLocaleString('es-AR')}
+                </span>
+            </div>
+
             <div className="detalle-venta-acciones">
                 {editando ? (
-                    <button onClick={guardarCambios}>Guardar Cambios</button>
+                    <>
+                        <button className="btn btn-primary" onClick={guardarCambios}>Guardar Cambios</button>
+                        <button className="btn btn-secondary" onClick={() => { setEditando(false); traerVenta(); }}>Cancelar</button>
+                    </>
                 ) : (
-                    <button onClick={() => setEditando(true)}>Editar Venta</button>
+                    <>
+                        <button className="btn btn-secondary" onClick={() => setEditando(true)}>Editar Venta</button>
+                        <button className="btn btn-secondary" onClick={generarPDF}>Descargar PDF</button>
+                    </>
                 )}
             </div>
         </div>
     )
+
 }
 
 export default DetalleVenta
