@@ -30,13 +30,18 @@ function DetalleProducto() {
         setForm(data[0])
     }
 
+    const convertirPrecio = (precio) => {
+        // Reemplazar coma por punto para que Number() lo interprete correctamente
+        return Number(precio.toString().replace(',', '.'))
+    }
+
     async function guardarCambios() {
         const { error } = await supabase
             .from('Productos')
             .update({
                 Nombre: form.Nombre,
-                PrecioCompra: Number(form.PrecioCompra),
-                PrecioVenta: Number(form.PrecioVenta),
+                PrecioCompra: convertirPrecio(form.PrecioCompra),
+                PrecioVenta: convertirPrecio(form.PrecioVenta),
                 Stock: Number(form.Stock),
                 ImagenUrl: form.ImagenUrl
             })

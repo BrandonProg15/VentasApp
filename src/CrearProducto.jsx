@@ -29,13 +29,18 @@ function CrearProducto() {
         navigate('/')
     }
 
+    const convertirPrecio = (precio) => {
+        // Reemplazar coma por punto para que Number() lo interprete correctamente
+        return Number(precio.toString().replace(',', '.'))
+    }
+
     const manejarSubmit = (e) => {
         e.preventDefault()
 
         const producto = {
             Nombre: Nombre,
-            PrecioCompra: Number(PrecioCompra),
-            PrecioVenta: Number(PrecioVenta),
+            PrecioCompra: convertirPrecio(PrecioCompra),
+            PrecioVenta: convertirPrecio(PrecioVenta),
             NombreProveedor: NombreProveedor,
             TipoProducto: TipoProducto,
             ImagenUrl: ImagenUrl
@@ -57,12 +62,12 @@ function CrearProducto() {
 
                 <div className="form-campo">
                     <label className="form-label">Precio compra</label>
-                    <input placeholder="0" type="number" onChange={(e) => setPrecioCompra(e.target.value)} />
+                    <input placeholder="0" type="text" onChange={(e) => setPrecioCompra(e.target.value)} />
                 </div>
 
                 <div className="form-campo">
                     <label className="form-label">Precio venta</label>
-                    <input placeholder="0" type="number" onChange={(e) => setPrecioVenta(e.target.value)} />
+                    <input placeholder="0" type="text" onChange={(e) => setPrecioVenta(e.target.value)} />
                 </div>
 
                 <div className="form-campo">
