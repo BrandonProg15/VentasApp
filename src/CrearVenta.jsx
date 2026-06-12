@@ -4,13 +4,16 @@ import { supabase } from './supabaseClient'
 import './CrearVenta.css'
 
 function CrearVenta() {
-
     const navigate = useNavigate()
 
     const [productos, setProductos] = useState([])
     const [clientes, setClientes] = useState([])
     const [clienteSeleccionado, setClienteSeleccionado] = useState(null)
+
+    // Estados para el buscador y selección
+    const [busqueda, setBusqueda] = useState('')
     const [productoSeleccionado, setProductoSeleccionado] = useState(null)
+    const [precioPersonalizado, setPrecioPersonalizado] = useState('') // El precio editable
     const [cantidad, setCantidad] = useState('')
     const [renglones, setRenglones] = useState([])
 
@@ -24,33 +27,29 @@ function CrearVenta() {
         cargarDatos()
     }, [])
 
-    function handleSelectProducto(e) {
-        const prod = productos.find(p => p.idProducto === Number(e.target.value))
-        setProductoSeleccionado(prod || null)
-    }
+    // Filtrado de productos para el buscador
+    const sugerencias = productos.filter(p =>
+        p.Nombre.toLowerCase().includes(busqueda.toLowerCase()) && busqueda !== ''
+    )
 
-    function handleSelectCliente(e) {
-        const cliente = clientes.find(c => c.idCliente === Number(e.target.value))
-        setClienteSeleccionado(cliente || null)
+    function seleccionarProducto(prod) {
+        setProductoSeleccionado(prod)
+        setPrecioPersonalizado(prod.PrecioVenta) // Carga el precio base, pero permite editarlo
+        setBusqueda(prod.Nombre) // Setea el nombre en el input
     }
 
     function agregarRenglon() {
-        if (!productoSeleccionado) {
-            alert("Seleccioná un producto")
-            return
-        }
-        if (!cantidad || Number(cantidad) <= 0) {
-            alert("Ingresá una cantidad válida")
-            return
-        }
+        if (!productoSeleccionado) return alert("Seleccioná un producto")
+        if (!cantidad || Number(cantidad) <= 0) return alert("Cantidad inválida")
 
         if (productoSeleccionado.Stock - Number(cantidad) < 0) {
             const confirmar = window.confirm(`No hay stock de ${productoSeleccionado.Nombre}, ¿agregar igual?`)
             if (!confirmar) return
         }
 
+        // Buscamos si ya existe el producto con el MISMO precio en la lista
         const indexExistente = renglones.findIndex(
-            r => r.producto.idProducto === productoSeleccionado.idProducto
+            r => r.producto.idProducto === productoSeleccionado.idProducto && r.precioFinal === Number(precioPersonalizado)
         )
 
         if (indexExistente !== -1) {
@@ -62,39 +61,22 @@ function CrearVenta() {
                 ...renglones,
                 {
                     producto: productoSeleccionado,
-                    cantidad: Number(cantidad)
+                    cantidad: Number(cantidad),
+                    precioFinal: Number(precioPersonalizado) // Guardamos el precio que eligió el primo
                 }
             ])
         }
 
+        // Limpiar campos
         setProductoSeleccionado(null)
+        setPrecioPersonalizado('')
         setCantidad('')
-    }
-
-    function eliminarRenglon(index) {
-        const nuevos = [...renglones]
-        nuevos.splice(index, 1)
-        setRenglones(nuevos)
-    }
-
-    function editarCantidad(index, nuevaCantidad) {
-        if (!nuevaCantidad || Number(nuevaCantidad) <= 0) return
-
-        const nuevos = [...renglones]
-        nuevos[index].cantidad = Number(nuevaCantidad)
-        setRenglones(nuevos)
+        setBusqueda('')
     }
 
     async function agregarVenta() {
-        if (!clienteSeleccionado) {
-            alert("Seleccioná un cliente")
-            return
-        }
-
-        if (renglones.length === 0) {
-            alert("Agregá al menos un producto")
-            return
-        }
+        if (!clienteSeleccionado) return alert("Seleccioná un cliente")
+        if (renglones.length === 0) return alert("Agregá al menos un producto")
 
         const { data: ventaCreada, error: errorVenta } = await supabase
             .from('Ventas')
@@ -105,118 +87,101 @@ function CrearVenta() {
             }])
             .select()
 
-        if (errorVenta) {
-            alert("Error al crear la venta")
-            return
-        }
+        if (errorVenta) return alert("Error al crear la venta")
 
         const idVenta = ventaCreada[0].idVenta
 
         for (const renglon of renglones) {
-            const { error: errorDetalle } = await supabase
-                .from('DetalleVentas')
-                .insert([{
-                    idVenta: idVenta,
-                    idProducto: renglon.producto.idProducto,
-                    CantidadUnidades: renglon.cantidad,
-                    PrecioVentaUnitario: renglon.producto.PrecioVenta
-                }])
-
-            if (errorDetalle) {
-                alert("Error al guardar detalle")
-                return
-            }
+            await supabase.from('DetalleVentas').insert([{
+                idVenta: idVenta,
+                idProducto: renglon.producto.idProducto,
+                CantidadUnidades: renglon.cantidad,
+                PrecioVentaUnitario: renglon.precioFinal // Se guarda el precio editado
+            }])
         }
 
         alert("Venta creada ✅")
         navigate('/')
     }
 
-    const manejarSubmit = (e) => {
-        e.preventDefault()
-        agregarVenta()
-    }
-
     return (
-        <form className="crear-venta-page" onSubmit={manejarSubmit}>
+        <div className="crear-venta-page">
             <h2>Nueva venta</h2>
 
             <div className="crear-venta-campos">
-
+                {/* Selector de Cliente */}
                 <div className="crear-venta-campo">
                     <label>Cliente</label>
-                    <select onChange={handleSelectCliente} defaultValue="">
+                    <select onChange={(e) => setClienteSeleccionado(clientes.find(c => c.idCliente === Number(e.target.value)))} defaultValue="">
                         <option value="" disabled>Seleccioná un cliente</option>
                         {clientes.map(c => (
-                            <option key={c.idCliente} value={c.idCliente}>
-                                {c.Nombre} {c.Apellido}
-                            </option>
+                            <option key={c.idCliente} value={c.idCliente}>{c.Nombre} {c.Apellido}</option>
                         ))}
                     </select>
                 </div>
 
-                <div className="crear-venta-campo">
-                    <label>Producto</label>
-                    <select onChange={handleSelectProducto} value={productoSeleccionado?.idProducto || ""}>
-                        <option value="" disabled>Seleccioná un producto</option>
-                        {productos.map(prod => (
-                            <option key={prod.idProducto} value={prod.idProducto}>
-                                {prod.Nombre}
-                            </option>
-                        ))}
-                    </select>
-
-                    {productoSeleccionado && (
-                        <div>
-                            Precio: ${productoSeleccionado.PrecioVenta}
-                        </div>
+                {/* Buscador de Producto */}
+                <div className="crear-venta-campo" style={{ position: 'relative' }}>
+                    <label>Buscar Producto</label>
+                    <input
+                        type="text"
+                        value={busqueda}
+                        onChange={(e) => { setBusqueda(e.target.value); setProductoSeleccionado(null); }}
+                        placeholder="Escribí el nombre..."
+                    />
+                    {busqueda && !productoSeleccionado && sugerencias.length > 0 && (
+                        <ul className="lista-sugerencias">
+                            {sugerencias.map(p => (
+                                <li key={p.idProducto} onClick={() => seleccionarProducto(p)}>
+                                    {p.Nombre} (${p.PrecioVenta})
+                                </li>
+                            ))}
+                        </ul>
                     )}
                 </div>
 
-                <div className="crear-venta-campo">
-                    <label>Cantidad</label>
-                    <input
-                        type="number"
-                        min="1"
-                        value={cantidad}
-                        onChange={(e) => setCantidad(e.target.value)}
-                    />
-                </div>
+                {/* Campos de edición una vez seleccionado el producto */}
+                {productoSeleccionado && (
+                    <div className="detalle-edicion-producto">
+                        <div className="crear-venta-campo">
+                            <label>Precio de Venta ($)</label>
+                            <input
+                                type="number"
+                                value={precioPersonalizado}
+                                onChange={(e) => setPrecioPersonalizado(e.target.value)}
+                            />
+                        </div>
+                        <div className="crear-venta-campo">
+                            <label>Cantidad</label>
+                            <input
+                                type="number"
+                                value={cantidad}
+                                onChange={(e) => setCantidad(e.target.value)}
+                            />
+                        </div>
+                        <button type="button" onClick={agregarRenglon}>Agregar producto</button>
+                    </div>
+                )}
 
-                <button type="button" onClick={agregarRenglon}>
-                    Agregar producto
-                </button>
-
+                {/* Tabla de Renglones */}
                 {renglones.length > 0 && (
-                    <div>
-                        <h3>Productos agregados</h3>
-
+                    <div className="tabla-productos">
+                        <h3>Productos en esta venta</h3>
                         {renglones.map((r, index) => (
                             <div key={index} className="renglon-item">
                                 <span>{r.producto.Nombre}</span>
-
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={r.cantidad}
-                                    onChange={(e) => editarCantidad(index, e.target.value)}
-                                />
-
-                                <span>${r.producto.PrecioVenta}</span>
-
-                                <button type="button" onClick={() => eliminarRenglon(index)}>
-                                    ❌
-                                </button>
+                                <span>Cant: {r.cantidad}</span>
+                                <span>Precio: ${r.precioFinal}</span>
+                                <span>Subtotal: ${r.cantidad * r.precioFinal}</span>
+                                <button type="button" onClick={() => setRenglones(renglones.filter((_, i) => i !== index))}>❌</button>
                             </div>
                         ))}
                     </div>
                 )}
-
             </div>
 
-            <button type="submit">Crear venta</button>
-
-        </form>
+            <button className="btn-finalizar" onClick={agregarVenta}>Finalizar Venta</button>
+        </div>
     )
 }
 
